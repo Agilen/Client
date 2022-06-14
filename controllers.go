@@ -73,10 +73,24 @@ func (s *Server) CreateUserController(c echo.Context) error {
 		return s.HttpErrorHandler(c, err, http.StatusInternalServerError)
 	}
 
-	resp, err := commands.POST(Join(BaseURL, c.Request().URL.String()), JSONType, body)
+	/////////////////////
+	encdata, err := s.cc.Encrypt(body, s.serverKey)
 	if err != nil {
 		return s.HttpErrorHandler(c, err, http.StatusInternalServerError)
 	}
+
+	fmt.Println(len(encdata))
+
+	decData, err := commands.POST(Join(BaseURL, c.Request().URL.String()), JSONType, encdata)
+	if err != nil {
+		return s.HttpErrorHandler(c, err, http.StatusInternalServerError)
+	}
+
+	resp, err := s.cc.Decrypt(decData)
+	if err != nil {
+		return s.HttpErrorHandler(c, err, http.StatusInternalServerError)
+	}
+	/////////////////////
 
 	var r RegistrationResponce
 	if err := json.Unmarshal(resp, &r); err != nil {

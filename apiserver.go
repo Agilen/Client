@@ -2,9 +2,12 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
+	"github.com/Agilen/Client/clientcrypto"
+	"github.com/Agilen/Client/commands"
 	"github.com/labstack/echo"
 	"github.com/sirupsen/logrus"
 	"honnef.co/go/tools/config"
@@ -18,20 +21,34 @@ type HttpError struct {
 }
 
 type Server struct {
-	router  *echo.Echo
-	logger  *logrus.Logger
-	Sockets *Sockets
+	router    *echo.Echo
+	logger    *logrus.Logger
+	sockets   *Sockets
+	cc        *clientcrypto.CryptoContext
+	serverKey []byte
 }
 
-func NewServer() *Server {
+func NewServer() (*Server, error) {
 	s := &Server{
 		router: echo.New(),
 		logger: logrus.New(),
 	}
 
+	var err error
+	s.cc, err = clientcrypto.NewCryptoContext()
+	if err != nil {
+		return nil, err
+	}
+
+	s.serverKey, err = commands.GET(Join(BaseURL, "/public"))
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(s.serverKey)
+
 	s.configureRouter()
 
-	return s
+	return s, nil
 }
 
 func (s *Server) configureRouter() {
@@ -47,7 +64,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func Start(config *config.Config) error {
 
-	s := NewServer()
+	s, err := NewServer()
+	if err != nil {
+		return err
+	}
 
 	return http.ListenAndServe(":10001", s)
 }
